@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -12,7 +11,6 @@ int isfile(const char *name)
 	// is dir
 	if (directory != NULL) {
 		closedir(directory);
-		fprintf(stderr, "rm: cannot remove '%s': Is a directory\n", name);
 		return 0;
 	}
 	// is file
@@ -54,27 +52,21 @@ int main(int argc, char *argv[])
 
 	int status = 0;
 	for (char **file = argv; *file; file++) {
-		if (access(*file, F_OK) != 0 && !mode[force]) {
+		if (!access(*file, F_OK) && !mode[force]) {
 			fprintf(stderr, "rm: cannot remove '%s' No such file or directory\n", *file);
 			status = 1;
 			continue;
-		}
-
-		if (mode[force] && (mode[recursive] || isfile(*file))) {
-			remove(*file);
-		} else if (mode[interactive] || access(*file, W_OK) != 0) {
-			fprintf(stderr, "rm: remove '%s'? ",* file);
+		} else if (!isfile(*file) && !mode[recursive]) {
+			fprintf(stderr, "rm: cannot remove '%s': Is a directory\n", *file);
+			status = 1;
+			continue;
+		} else if (mode[interactive] || (!access(*file, W_OK) && !mode[force])) {
+			fprintf(stderr, "rm: remove '%s'? ", *file);
 			if (getchar() != 'y')
 				continue;
-
-			if (isfile(*file) && !mode[recursive])
-				remove(*file);
 		}
-		// remove files if they are not dirs (unless recursive mode on)
-		if ((optind == 1 && isfile(*file)) || mode[recursive])
-			remove(*file);
-		else
-			status = 1;
+
+		remove(*file);
 	}
 
 	return status;
